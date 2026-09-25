@@ -40,13 +40,12 @@
             # further modules go here; copied into modules/<name>
           };
         };
-        azerothcore-client-data = final.callPackage ./pkgs/client-data.nix { };
+        wotlk-client-data = final.callPackage ./pkgs/client-data.nix { };
       };
 
       packages.${system} = {
+        inherit (pkgs) azerothcore-playerbots wotlk-client-data;
         default = pkgs.azerothcore-playerbots;
-        azerothcore-playerbots = pkgs.azerothcore-playerbots;
-        client-data = pkgs.azerothcore-client-data;
       };
 
       nixosModules.default = import ./modules/azerothcore.nix self.overlays.default;

@@ -9,7 +9,7 @@ Flake outputs (`x86_64-linux` only):
 | Output                            | Description                                |
 | --------------------------------- | ------------------------------------------ |
 | `packages.azerothcore-playerbots` | `worldserver`, `authserver`, `.conf.dist`s |
-| `packages.client-data`            | Prebuilt dbc/maps/vmaps/mmaps (WotLK)      |
+| `packages.wotlk-client-data`      | Prebuilt dbc/maps/vmaps/mmaps (WotLK)      |
 | `overlays.default`                | Adds both packages to `pkgs`               |
 | `nixosModules.default`            | `services.azerothcore`                     |
 
@@ -30,7 +30,7 @@ Flake outputs (`x86_64-linux` only):
         {
           services.azerothcore = {
             enable = true;
-            dataDir = "${azerothcore.packages.x86_64-linux.client-data}";
+            clientData.enable = true;
           };
         }
       ];
@@ -80,7 +80,7 @@ config at service start and never ends up in the Nix store. It must not contain
 The worldserver needs `dbc`, `maps`, `vmaps` and `mmaps` (enUS DBCs). Either:
 
 - use the prebuilt package:
-  `dataDir = "${azerothcore.packages.x86_64-linux.client-data}";`
+  `clientData.enable = true;` (sets `dataDir` to it)
 - or keep the default (`/var/lib/azerothcore/data`) and fill it with the output
   of the AzerothCore extractors.
 
@@ -170,7 +170,9 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 | `enable`                  | `false`                                                   | Enable the auth- and worldserver                        |
 | `package`                 | `azerothcore-playerbots` from this flake                  | Server package                                          |
 | `stateDir`                | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`            |
-| `dataDir`                 | `<stateDir>/data`                                         | Client data (dbc/maps/vmaps/mmaps)                      |
+| `clientData.enable`       | `false`                                                   | Use the prebuilt client data as `dataDir`               |
+| `clientData.package`      | `wotlk-client-data` from this flake                       | Client data package                                     |
+| `dataDir`                 | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                      |
 | `database.host`           | `127.0.0.1`                                               | MySQL host (TCP)                                        |
 | `database.port`           | `3306`                                                    | MySQL port (TCP)                                        |
 | `database.socket`         | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                        |

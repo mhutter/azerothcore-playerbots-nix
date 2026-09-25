@@ -88,10 +88,21 @@ in
       default = "/var/lib/azerothcore";
     };
 
+    clientData = {
+      enable = lib.mkEnableOption "the prebuilt client data package as dataDir";
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = acPkgs.wotlk-client-data;
+        defaultText = lib.literalExpression "azerothcore-playerbots-nix.packages.\${system}.wotlk-client-data";
+      };
+    };
+
     dataDir = lib.mkOption {
       type = lib.types.str;
-      default = "${cfg.stateDir}/data";
-      description = "dbc/maps/vmaps/mmaps: the flake's client-data package or a dir filled by the extractors (enUS DBCs required).";
+      default = if cfg.clientData.enable then "${cfg.clientData.package}" else "${cfg.stateDir}/data";
+      defaultText = lib.literalExpression ''if clientData.enable then "''${clientData.package}" else "''${stateDir}/data"'';
+      description = "dbc/maps/vmaps/mmaps: set clientData.enable or fill this dir with the extractors' output (enUS DBCs required).";
     };
 
     database = {
