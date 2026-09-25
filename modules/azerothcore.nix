@@ -147,11 +147,7 @@ in
       createLocally = lib.mkOption {
         type = lib.types.bool;
         default = true;
-        description = "Run MySQL 8.4 here with the playerbots wiki tuning.";
-      };
-      bufferPoolSize = lib.mkOption {
-        type = lib.types.str;
-        default = "4G";
+        description = "Run MySQL 8.4 here.";
       };
     };
 
@@ -193,7 +189,6 @@ in
       "Console.Enable" = 0; # use RA/SOAP for GM commands
       "Ra.Enable" = 1;
       "Ra.IP" = "127.0.0.1";
-      "MapUpdate.Threads" = 4; # wiki: cores-2, never >8
       LoginDatabaseInfo = dbInfo "acore_auth";
       WorldDatabaseInfo = dbInfo "acore_world";
       CharacterDatabaseInfo = dbInfo "acore_characters";
@@ -207,7 +202,7 @@ in
       PlayerbotsDatabaseInfo = dbInfo "acore_playerbots";
     };
 
-    # ---- MySQL 8.4 LTS with the wiki's tuning ----
+    # ---- MySQL 8.4 LTS ----
     services.mysql = lib.mkIf cfg.database.createLocally {
       enable = true;
       package = pkgs.mysql84;
@@ -230,13 +225,6 @@ in
           };
         }
       ];
-      settings.mysqld = {
-        skip-log-bin = true;
-        innodb_buffer_pool_size = cfg.database.bufferPoolSize;
-        innodb_io_capacity = 500;
-        innodb_io_capacity_max = 2500;
-        transaction_isolation = "READ-COMMITTED";
-      };
     };
 
     systemd.tmpfiles.rules = [

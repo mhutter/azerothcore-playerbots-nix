@@ -31,6 +31,7 @@ Flake outputs (`x86_64-linux` only):
           services.azerothcore = {
             enable = true;
             clientData.enable = true;
+            # See "Configuration" section below
           };
         }
       ];
@@ -47,8 +48,7 @@ This gives you:
 - `ac-authserver.service` and `ac-worldserver.service`, running as user
   `azerothcore`
 - A local MySQL 8.4 with databases `acore_auth`, `acore_characters`,
-  `acore_world` and `acore_playerbots`, tuned as recommended by the
-  mod-playerbots wiki
+  `acore_world` and `acore_playerbots`
 - TCP ports 3724 (auth) and 8085 (world) opened in the firewall
 - Database schemas created and updated automatically by the worldserver on start
   (`Updates.EnableDatabases = 7`)
@@ -106,16 +106,31 @@ services.azerothcore = {
   moduleSettings."playerbots.conf" = {
     "AiPlayerbot.MinRandomBots" = 200;
     "AiPlayerbot.MaxRandomBots" = 500;
+    "AiPlayerbot.DisabledWithoutRealPlayer" = 1;
   };
 };
 ```
 
 Module defaults (paths, database connection strings, `Console.Enable = 0`,
-`Ra.Enable = 1` on `127.0.0.1`, `MapUpdate.Threads = 4`, ...) can be overridden
+`Ra.Enable = 1` on `127.0.0.1`, ...) can be overridden
 with `lib.mkForce`:
 
 ```nix
 services.azerothcore.worldserver.settings."Ra.IP" = lib.mkForce "0.0.0.0";
+```
+
+#### MySQL tuning
+
+The module does not tune the local MySQL. The mod-playerbots wiki recommends:
+
+```nix
+services.mysql.settings.mysqld = {
+  skip-log-bin = true;
+  innodb_buffer_pool_size = "4G";
+  innodb_io_capacity = 500;
+  innodb_io_capacity_max = 2500;
+  transaction_isolation = "READ-COMMITTED";
+};
 ```
 
 ### GM commands
@@ -167,21 +182,20 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 
 ### Options
 
-| Option                    | Default                                                   | Description                                              |
-| ------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
-| `enable`                  | `false`                                                   | Enable the auth- and worldserver                         |
-| `package`                 | `azerothcore-playerbots` from this flake                  | Server package                                           |
-| `stateDir`                | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`             |
-| `clientData.enable`       | `false`                                                   | Use the prebuilt client data as `dataDir`                |
-| `clientData.package`      | `wotlk-client-data` from this flake                       | Client data package                                      |
-| `dataDir`                 | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                       |
-| `database.host`           | `127.0.0.1`                                               | MySQL host (TCP)                                         |
-| `database.port`           | `3306`                                                    | MySQL port (TCP)                                         |
-| `database.socket`         | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                         |
-| `database.user`           | `azerothcore`                                             | MySQL user                                               |
-| `database.passwordFile`   | `""`                                                      | File containing the MySQL password; empty = no password  |
-| `database.createLocally`  | `true`                                                    | Run and tune a local MySQL 8.4                           |
-| `database.bufferPoolSize` | `4G`                                                      | `innodb_buffer_pool_size` of the local MySQL             |
-| `worldserver.settings`    | `{ }`                                                     | Overrides for `worldserver.conf`                         |
-| `authserver.settings`     | `{ }`                                                     | Overrides for `authserver.conf`                          |
-| `moduleSettings.<file>`   | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"` |
+| Option                   | Default                                                   | Description                                              |
+| ------------------------ | --------------------------------------------------------- | -------------------------------------------------------- |
+| `enable`                 | `false`                                                   | Enable the auth- and worldserver                         |
+| `package`                | `azerothcore-playerbots` from this flake                  | Server package                                           |
+| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`             |
+| `clientData.enable`      | `false`                                                   | Use the prebuilt client data as `dataDir`                |
+| `clientData.package`     | `wotlk-client-data` from this flake                       | Client data package                                      |
+| `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                       |
+| `database.host`          | `127.0.0.1`                                               | MySQL host (TCP)                                         |
+| `database.port`          | `3306`                                                    | MySQL port (TCP)                                         |
+| `database.socket`        | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                         |
+| `database.user`          | `azerothcore`                                             | MySQL user                                               |
+| `database.passwordFile`  | `""`                                                      | File containing the MySQL password; empty = no password  |
+| `database.createLocally` | `true`                                                    | Run a local MySQL 8.4                                    |
+| `worldserver.settings`   | `{ }`                                                     | Overrides for `worldserver.conf`                         |
+| `authserver.settings`    | `{ }`                                                     | Overrides for `authserver.conf`                          |
+| `moduleSettings.<file>`  | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"` |
