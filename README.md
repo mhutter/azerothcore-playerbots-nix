@@ -188,6 +188,33 @@ RA needs a GM account, so the first one has to be created on the console:
    unit, so the worldserver is started again; if not,
    `sudo systemctl start ac-worldserver`.
 
+#### Using Remote Access
+
+RA speaks plain telnet. The `telnet` client is in the `inetutils` package;
+either run it ad hoc or install it on the server:
+
+```sh
+nix shell nixpkgs#inetutils -c telnet 127.0.0.1 3443
+```
+
+```nix
+environment.systemPackages = [ pkgs.inetutils ];
+```
+
+Log in with a GM account of level 3 or higher (`Ra.MinLevel`), then enter
+commands without the leading `.`:
+
+```
+Username: admin
+Password: <password>
+AC>server info
+AC>account create alice <password>
+AC>quit
+```
+
+Sending an empty line also closes the session. RA expects `\r\n` line endings,
+which `telnet` sends. For `nc`, use `nc -C`.
+
 ### Remote clients
 
 Clients get the world server address from the `realmlist` table. For
