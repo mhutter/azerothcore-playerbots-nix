@@ -82,6 +82,7 @@ let
     RuntimeDirectory = "azerothcore";
     RuntimeDirectoryPreserve = true;
     StateDirectory = "azerothcore";
+    LogsDirectory = "azerothcore";
     Restart = "always";
     RestartSec = 5;
     StandardInput = "null"; # no interactive console under systemd
@@ -210,7 +211,7 @@ in
     # ---- defaults, all overridable via mkForce ----
     services.azerothcore.worldserver.settings = {
       DataDir = cfg.dataDir;
-      LogsDir = "${cfg.stateDir}/logs";
+      LogsDir = "/var/log/azerothcore";
       "Console.Enable" = 0; # use RA/SOAP for GM commands
       "Ra.Enable" = 1;
       "Ra.IP" = "127.0.0.1";
@@ -221,7 +222,7 @@ in
     }
     // totpSetting;
     services.azerothcore.authserver.settings = {
-      LogsDir = "${cfg.stateDir}/logs";
+      LogsDir = "/var/log/azerothcore";
       LoginDatabaseInfo = dbInfo "acore_auth";
     }
     // totpSetting;
@@ -256,7 +257,6 @@ in
 
     systemd.tmpfiles.rules = [
       "d ${cfg.stateDir} 0750 azerothcore azerothcore -"
-      "d ${cfg.stateDir}/logs 0750 azerothcore azerothcore -"
     ];
 
     systemd.services.ac-authserver = {

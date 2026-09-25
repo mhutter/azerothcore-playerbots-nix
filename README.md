@@ -203,7 +203,7 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 | ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------- |
 | `enable`                 | `false`                                                   | Enable the auth- and worldserver                                     |
 | `package`                | `azerothcore-playerbots` from this flake                  | Server package                                                       |
-| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`                         |
+| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory; logs go to `/var/log/azerothcore`                 |
 | `clientData.enable`      | `false`                                                   | Use the prebuilt client data as `dataDir`                            |
 | `clientData.package`     | `wotlk-client-data` from this flake                       | Client data package                                                  |
 | `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                                   |
