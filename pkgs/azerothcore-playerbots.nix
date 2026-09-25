@@ -17,6 +17,9 @@
   src,
   version,
   modules ? { },
+  # Where the servers look for modules/*.conf at runtime (and for the default -c).
+  # Must be writable config, not the store; matches the NixOS module's runDir.
+  runtimeConfDir ? "/run/azerothcore",
 }:
 
 llvmPackages.stdenv.mkDerivation (finalAttrs: {
@@ -37,6 +40,13 @@ llvmPackages.stdenv.mkDerivation (finalAttrs: {
     # exist at runtime -> point it at what we install under $out/share.
     substituteInPlace src/cmake/revision.h.in.cmake \
       --replace-fail '@CMAKE_SOURCE_DIR@' "${placeholder "out"}/share/azerothcore"
+
+    # Module configs are read from <_CONF_DIR>/modules/, independent of -c.
+    # _CONF_DIR defaults to $out/etc (install target, read-only) -> decouple
+    # the runtime lookup path from where the .dist files get installed.
+    substituteInPlace src/cmake/showoptions.cmake \
+      --replace-fail 'add_definitions(-D_CONF_DIR=$<1:"''${CONF_DIR}">)' \
+                     'add_definitions(-D_CONF_DIR=$<1:"${runtimeConfDir}">)'
   '';
 
   nativeBuildInputs = [

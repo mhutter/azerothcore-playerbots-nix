@@ -86,9 +86,11 @@ The worldserver needs `dbc`, `maps`, `vmaps` and `mmaps` (enUS DBCs). Either:
 
 ### Configuration
 
-Settings are rendered into `worldserver.conf`, `authserver.conf` and
-`modules/playerbots.conf` under `/run/azerothcore`. The packaged `.conf.dist`
-files are loaded first, so you only need to set what differs from upstream
+Settings are rendered into `worldserver.conf`, `authserver.conf` and one
+`modules/<name>.conf` per module config the package ships (e.g.
+`playerbots.conf`), all under `/run/azerothcore`. Each file is the packaged
+`.conf.dist` with your settings appended (last key wins),
+so you only need to set what differs from upstream
 defaults. Keys are the upstream config keys, values are strings or integers:
 
 ```nix
@@ -101,7 +103,7 @@ services.azerothcore = {
   authserver.settings = {
     "RealmServerPort" = 3724;
   };
-  playerbots.settings = {
+  moduleSettings."playerbots.conf" = {
     "AiPlayerbot.MinRandomBots" = 200;
     "AiPlayerbot.MaxRandomBots" = 500;
   };
@@ -165,21 +167,21 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 
 ### Options
 
-| Option                    | Default                                                   | Description                                             |
-| ------------------------- | --------------------------------------------------------- | ------------------------------------------------------- |
-| `enable`                  | `false`                                                   | Enable the auth- and worldserver                        |
-| `package`                 | `azerothcore-playerbots` from this flake                  | Server package                                          |
-| `stateDir`                | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`            |
-| `clientData.enable`       | `false`                                                   | Use the prebuilt client data as `dataDir`               |
-| `clientData.package`      | `wotlk-client-data` from this flake                       | Client data package                                     |
-| `dataDir`                 | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                      |
-| `database.host`           | `127.0.0.1`                                               | MySQL host (TCP)                                        |
-| `database.port`           | `3306`                                                    | MySQL port (TCP)                                        |
-| `database.socket`         | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                        |
-| `database.user`           | `azerothcore`                                             | MySQL user                                              |
-| `database.passwordFile`   | `""`                                                      | File containing the MySQL password; empty = no password |
-| `database.createLocally`  | `true`                                                    | Run and tune a local MySQL 8.4                          |
-| `database.bufferPoolSize` | `4G`                                                      | `innodb_buffer_pool_size` of the local MySQL            |
-| `worldserver.settings`    | `{ }`                                                     | Overrides for `worldserver.conf`                        |
-| `authserver.settings`     | `{ }`                                                     | Overrides for `authserver.conf`                         |
-| `playerbots.settings`     | `{ }`                                                     | Overrides for `modules/playerbots.conf`                 |
+| Option                    | Default                                                   | Description                                              |
+| ------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| `enable`                  | `false`                                                   | Enable the auth- and worldserver                         |
+| `package`                 | `azerothcore-playerbots` from this flake                  | Server package                                           |
+| `stateDir`                | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`             |
+| `clientData.enable`       | `false`                                                   | Use the prebuilt client data as `dataDir`                |
+| `clientData.package`      | `wotlk-client-data` from this flake                       | Client data package                                      |
+| `dataDir`                 | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                       |
+| `database.host`           | `127.0.0.1`                                               | MySQL host (TCP)                                         |
+| `database.port`           | `3306`                                                    | MySQL port (TCP)                                         |
+| `database.socket`         | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                         |
+| `database.user`           | `azerothcore`                                             | MySQL user                                               |
+| `database.passwordFile`   | `""`                                                      | File containing the MySQL password; empty = no password  |
+| `database.createLocally`  | `true`                                                    | Run and tune a local MySQL 8.4                           |
+| `database.bufferPoolSize` | `4G`                                                      | `innodb_buffer_pool_size` of the local MySQL             |
+| `worldserver.settings`    | `{ }`                                                     | Overrides for `worldserver.conf`                         |
+| `authserver.settings`     | `{ }`                                                     | Overrides for `authserver.conf`                          |
+| `moduleSettings.<file>`   | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"` |

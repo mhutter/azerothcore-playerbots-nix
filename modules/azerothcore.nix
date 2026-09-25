@@ -14,11 +14,15 @@ let
 
   toConf = lib.generators.toKeyValue { mkKeyValue = k: v: "${k} = ${toString v}"; };
 
-  # Runtime config = <pkg>/etc/*.conf.dist (loaded first) + our overrides.
+  # AC only reads the .conf, never the .dist. So the runtime config is
+  # <pkg>/etc/*.conf.dist with our overrides appended (the last duplicate key wins).
   # Passwords never hit the store: @DB_PASSWORD@ is substituted in preStart.
   worldConf = pkgs.writeText "worldserver.conf" (toConf cfg.worldserver.settings);
   authConf = pkgs.writeText "authserver.conf" (toConf cfg.authserver.settings);
-  botsConf = pkgs.writeText "playerbots.conf" (toConf cfg.playerbots.settings);
+  # One file per module config, named like the .conf it overrides.
+  moduleConfs = pkgs.linkFarm "azerothcore-module-confs" (
+    lib.mapAttrs (name: s: pkgs.writeText name (toConf s)) cfg.moduleSettings
+  );
 
   # Host "." makes AzerothCore treat the port field as a unix socket path.
   dbEndpoint =
@@ -33,13 +37,23 @@ let
     pw=""
     [ -n "${cfg.database.passwordFile}" ] && pw=$(cat "$CREDENTIALS_DIRECTORY/dbpass")
     mkdir -p ${runDir}/modules
-    for f in worldserver authserver; do
-      ln -sfn ${cfg.package}/etc/$f.conf.dist ${runDir}/$f.conf.dist
+    render() { cat "$1" - "$2" <<< "" | sed "s|@DB_PASSWORD@|$pw|g" > "$3"; }
+    render ${cfg.package}/etc/worldserver.conf.dist ${worldConf} ${runDir}/worldserver.conf
+    render ${cfg.package}/etc/authserver.conf.dist ${authConf} ${runDir}/authserver.conf
+    for o in ${moduleConfs}/*; do
+      [ -e "$o" ] || continue # no moduleSettings at all
+      n=$(basename "$o")
+      [ -e ${cfg.package}/etc/modules/$n.dist ] \
+        || { echo "moduleSettings.\"$n\": package ships no modules/$n.dist" >&2; exit 1; }
     done
-    ln -sfn ${cfg.package}/etc/modules/playerbots.conf.dist ${runDir}/modules/playerbots.conf.dist
-    sed "s|@DB_PASSWORD@|$pw|g" ${worldConf} > ${runDir}/worldserver.conf
-    sed "s|@DB_PASSWORD@|$pw|g" ${authConf}  > ${runDir}/authserver.conf
-    cp ${botsConf} ${runDir}/modules/playerbots.conf
+    rm -f ${runDir}/modules/*.conf
+    for d in ${cfg.package}/etc/modules/*.conf.dist; do
+      [ -e "$d" ] || continue # package built without module configs
+      n=$(basename "$d" .dist)
+      o=${moduleConfs}/$n
+      [ -e "$o" ] || o=/dev/null
+      render "$d" "$o" ${runDir}/modules/$n
+    done
   '';
 
   serviceCommon = {
@@ -149,9 +163,11 @@ in
       type = settingsType;
       default = { };
     };
-    playerbots.settings = lib.mkOption {
-      type = settingsType;
+    moduleSettings = lib.mkOption {
+      type = lib.types.attrsOf settingsType;
       default = { };
+      example = lib.literalExpression ''{ "playerbots.conf"."AiPlayerbot.MaxRandomBots" = 500; }'';
+      description = "Overrides per module config, keyed by file name under modules/ (the .conf.dist name without .dist). Every module config the package ships is rendered, with or without overrides.";
     };
   };
 
@@ -187,7 +203,7 @@ in
       LogsDir = "${cfg.stateDir}/logs";
       LoginDatabaseInfo = dbInfo "acore_auth";
     };
-    services.azerothcore.playerbots.settings = {
+    services.azerothcore.moduleSettings."playerbots.conf" = {
       PlayerbotsDatabaseInfo = dbInfo "acore_playerbots";
     };
 
