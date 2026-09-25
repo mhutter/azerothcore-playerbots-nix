@@ -16,7 +16,8 @@ let
 
   # AC only reads the .conf, never the .dist. So the runtime config is
   # <pkg>/etc/*.conf.dist with our overrides appended (the last duplicate key wins).
-  # Passwords never hit the store: @DB_PASSWORD@ is substituted in preStart.
+  # Secrets never hit the store: @DB_PASSWORD@ and @TOTP_MASTER_SECRET@ are
+  # substituted in preStart.
   worldConf = pkgs.writeText "worldserver.conf" (toConf cfg.worldserver.settings);
   authConf = pkgs.writeText "authserver.conf" (toConf cfg.authserver.settings);
   # One file per module config, named like the .conf it overrides.
@@ -31,13 +32,22 @@ let
     else
       "${cfg.database.host};${toString cfg.database.port}";
   dbInfo = db: "${dbEndpoint};${cfg.database.user};@DB_PASSWORD@;${db}";
+  totpSetting = lib.optionalAttrs (cfg.totpMasterSecretFile != "") {
+    TOTPMasterSecret = "@TOTP_MASTER_SECRET@";
+  };
 
   preStart = pkgs.writeShellScript "azerothcore-render-conf" ''
     set -eu
     pw=""
     [ -n "${cfg.database.passwordFile}" ] && pw=$(cat "$CREDENTIALS_DIRECTORY/dbpass")
+    totp=""
+    if [ -n "${cfg.totpMasterSecretFile}" ]; then
+      totp=$(tr -d "[:space:]" < "$CREDENTIALS_DIRECTORY/totp")
+      [[ $totp =~ ^[0-9a-fA-F]{32}$ ]] \
+        || { echo "totpMasterSecretFile: expected 32 hex chars (openssl rand -hex 16)" >&2; exit 1; }
+    fi
     mkdir -p ${runDir}/modules
-    render() { cat "$1" - "$2" <<< "" | sed "s|@DB_PASSWORD@|$pw|g" > "$3"; }
+    render() { cat "$1" - "$2" <<< "" | sed -e "s|@DB_PASSWORD@|$pw|g" -e "s|@TOTP_MASTER_SECRET@|$totp|g" > "$3"; }
     render ${cfg.package}/etc/worldserver.conf.dist ${worldConf} ${runDir}/worldserver.conf
     render ${cfg.package}/etc/authserver.conf.dist ${authConf} ${runDir}/authserver.conf
     for o in ${moduleConfs}/*; do
@@ -66,9 +76,9 @@ let
     Restart = "always";
     RestartSec = 5;
     StandardInput = "null"; # no interactive console under systemd
-    LoadCredential = lib.optional (
-      cfg.database.passwordFile != ""
-    ) "dbpass:${cfg.database.passwordFile}";
+    LoadCredential =
+      lib.optional (cfg.database.passwordFile != "") "dbpass:${cfg.database.passwordFile}"
+      ++ lib.optional (cfg.totpMasterSecretFile != "") "totp:${cfg.totpMasterSecretFile}";
     ExecStartPre = "+${preStart}";
     NoNewPrivileges = true;
     ProtectSystem = "strict";
@@ -151,6 +161,12 @@ in
       };
     };
 
+    totpMasterSecretFile = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = "File with the TOTPMasterSecret for world- and authserver (sops-nix/agenix): 32 hex chars, e.g. from `openssl rand -hex 16`. Empty = unset.";
+    };
+
     worldserver.settings = lib.mkOption {
       type = settingsType;
       default = { };
@@ -193,11 +209,13 @@ in
       WorldDatabaseInfo = dbInfo "acore_world";
       CharacterDatabaseInfo = dbInfo "acore_characters";
       "Updates.EnableDatabases" = 7; # auto-updater populates all DBs
-    };
+    }
+    // totpSetting;
     services.azerothcore.authserver.settings = {
       LogsDir = "${cfg.stateDir}/logs";
       LoginDatabaseInfo = dbInfo "acore_auth";
-    };
+    }
+    // totpSetting;
     services.azerothcore.moduleSettings."playerbots.conf" = {
       PlayerbotsDatabaseInfo = dbInfo "acore_playerbots";
     };

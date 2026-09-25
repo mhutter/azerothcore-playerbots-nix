@@ -75,6 +75,23 @@ The user needs all privileges on `acore_auth`, `acore_characters`,
 config at service start and never ends up in the Nix store. It must not contain
 `|`, `&` or `\` (it is inserted via `sed`).
 
+### TOTP master secret
+
+To encrypt the TOTP (2FA) secrets stored in the auth database, point
+`totpMasterSecretFile` at a file holding 16 random bytes as hex:
+
+```sh
+openssl rand -hex 16 > totp-master-secret # then encrypt with agenix/sops-nix
+```
+
+```nix
+services.azerothcore.totpMasterSecretFile = config.age.secrets.azerothcore-totp.path;
+```
+
+It is set as `TOTPMasterSecret` in both `worldserver.conf` and
+`authserver.conf` at service start and never ends up in the Nix store. The
+services refuse to start if the file does not contain exactly 32 hex characters.
+
 ### Client data
 
 The worldserver needs `dbc`, `maps`, `vmaps` and `mmaps` (enUS DBCs). Either:
@@ -182,20 +199,21 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 
 ### Options
 
-| Option                   | Default                                                   | Description                                              |
-| ------------------------ | --------------------------------------------------------- | -------------------------------------------------------- |
-| `enable`                 | `false`                                                   | Enable the auth- and worldserver                         |
-| `package`                | `azerothcore-playerbots` from this flake                  | Server package                                           |
-| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`             |
-| `clientData.enable`      | `false`                                                   | Use the prebuilt client data as `dataDir`                |
-| `clientData.package`     | `wotlk-client-data` from this flake                       | Client data package                                      |
-| `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                       |
-| `database.host`          | `127.0.0.1`                                               | MySQL host (TCP)                                         |
-| `database.port`          | `3306`                                                    | MySQL port (TCP)                                         |
-| `database.socket`        | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                         |
-| `database.user`          | `azerothcore`                                             | MySQL user                                               |
-| `database.passwordFile`  | `""`                                                      | File containing the MySQL password; empty = no password  |
-| `database.createLocally` | `true`                                                    | Run a local MySQL 8.4                                    |
-| `worldserver.settings`   | `{ }`                                                     | Overrides for `worldserver.conf`                         |
-| `authserver.settings`    | `{ }`                                                     | Overrides for `authserver.conf`                          |
-| `moduleSettings.<file>`  | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"` |
+| Option                   | Default                                                   | Description                                                          |
+| ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| `enable`                 | `false`                                                   | Enable the auth- and worldserver                                     |
+| `package`                | `azerothcore-playerbots` from this flake                  | Server package                                                       |
+| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory, logs in `<stateDir>/logs`                         |
+| `clientData.enable`      | `false`                                                   | Use the prebuilt client data as `dataDir`                            |
+| `clientData.package`     | `wotlk-client-data` from this flake                       | Client data package                                                  |
+| `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                                   |
+| `database.host`          | `127.0.0.1`                                               | MySQL host (TCP)                                                     |
+| `database.port`          | `3306`                                                    | MySQL port (TCP)                                                     |
+| `database.socket`        | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                                     |
+| `database.user`          | `azerothcore`                                             | MySQL user                                                           |
+| `database.passwordFile`  | `""`                                                      | File containing the MySQL password; empty = no password              |
+| `database.createLocally` | `true`                                                    | Run a local MySQL 8.4                                                |
+| `totpMasterSecretFile`   | `""`                                                      | File containing the `TOTPMasterSecret` (32 hex chars); empty = unset |
+| `worldserver.settings`   | `{ }`                                                     | Overrides for `worldserver.conf`                                     |
+| `authserver.settings`    | `{ }`                                                     | Overrides for `authserver.conf`                                      |
+| `moduleSettings.<file>`  | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"`             |
