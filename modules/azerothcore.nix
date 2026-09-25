@@ -15,7 +15,8 @@ let
   toConf = lib.generators.toKeyValue { mkKeyValue = k: v: "${k} = ${toString v}"; };
 
   # AC only reads the .conf, never the .dist. So the runtime config is
-  # <pkg>/etc/*.conf.dist with our overrides appended (the last duplicate key wins).
+  # <pkg>/etc/*.conf.dist with the overridden keys removed and our overrides
+  # appended (AC keeps the first duplicate key in a file and ignores the rest).
   # Secrets never hit the store: @DB_PASSWORD@ and @TOTP_MASTER_SECRET@ are
   # substituted in preStart.
   worldConf = pkgs.writeText "worldserver.conf" (toConf cfg.worldserver.settings);
@@ -47,7 +48,15 @@ let
         || { echo "totpMasterSecretFile: expected 32 hex chars (openssl rand -hex 16)" >&2; exit 1; }
     fi
     mkdir -p ${runDir}/modules
-    render() { cat "$1" - "$2" <<< "" | sed -e "s|@DB_PASSWORD@|$pw|g" -e "s|@TOTP_MASTER_SECRET@|$totp|g" > "$3"; }
+    # Drop the .dist lines for overridden keys, then append the overrides.
+    render() {
+      { ${lib.getExe pkgs.gawk} -F= '
+          { k = $1; gsub(/^[ \t]+|[ \t]+$/, "", k) }
+          FILENAME == ARGV[1] { if (k != "") o[k] = 1; next }
+          !(k in o)
+        ' "$2" "$1"; echo; cat "$2"; } \
+        | sed -e "s|@DB_PASSWORD@|$pw|g" -e "s|@TOTP_MASTER_SECRET@|$totp|g" > "$3"
+    }
     render ${cfg.package}/etc/worldserver.conf.dist ${worldConf} ${runDir}/worldserver.conf
     render ${cfg.package}/etc/authserver.conf.dist ${authConf} ${runDir}/authserver.conf
     for o in ${moduleConfs}/*; do
