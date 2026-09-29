@@ -282,7 +282,7 @@ in
       requires = lib.optional cfg.database.createLocally "mysql.service";
       wantedBy = [ "multi-user.target" ];
       serviceConfig = serviceCommon // {
-        ExecStart = "${cfg.package}/bin/authserver -c ${runDir}/authserver.conf";
+        ExecStart = "${pkgs.coreutils}/bin/stdbuf -oL ${cfg.package}/bin/authserver -c ${runDir}/authserver.conf";
       };
     };
 
@@ -296,7 +296,7 @@ in
       requires = lib.optional cfg.database.createLocally "mysql.service";
       wantedBy = [ "multi-user.target" ];
       serviceConfig = serviceCommon // {
-        ExecStart = "${cfg.package}/bin/worldserver -c ${runDir}/worldserver.conf";
+        ExecStart = "${pkgs.coreutils}/bin/stdbuf -oL ${cfg.package}/bin/worldserver -c ${runDir}/worldserver.conf";
         TimeoutStopSec = 300; # world save on shutdown
         LimitNOFILE = 65536;
       };
