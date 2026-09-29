@@ -108,6 +108,7 @@ let
       lib.types.str
       lib.types.int
       lib.types.float
+      lib.types.bool
     ]
   );
 in
