@@ -108,7 +108,7 @@ Settings are rendered into `worldserver.conf`, `authserver.conf` and one
 `playerbots.conf`), all under `/run/azerothcore`. Each file is the packaged
 `.conf.dist` with your settings appended (last key wins),
 so you only need to set what differs from upstream
-defaults. Keys are the upstream config keys, values are strings or integers:
+defaults. Keys are the upstream config keys, values are strings, integers or floats:
 
 ```nix
 services.azerothcore = {

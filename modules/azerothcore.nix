@@ -12,7 +12,10 @@ let
   acPkgs = overlay pkgs pkgs;
   runDir = "/run/azerothcore";
 
-  toConf = lib.generators.toKeyValue { mkKeyValue = k: v: "${k} = ${toString v}"; };
+  # toString renders floats as 0.500000; toJSON as 0.5, without the 6-digit cutoff.
+  toConf = lib.generators.toKeyValue {
+    mkKeyValue = k: v: "${k} = ${if builtins.isFloat v then builtins.toJSON v else toString v}";
+  };
 
   # AC only reads the .conf, never the .dist. So the runtime config is
   # <pkg>/etc/*.conf.dist with the overridden keys removed and our overrides
@@ -104,6 +107,7 @@ let
     lib.types.oneOf [
       lib.types.str
       lib.types.int
+      lib.types.float
     ]
   );
 in
