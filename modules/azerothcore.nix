@@ -113,8 +113,17 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = acPkgs.azerothcore-playerbots;
-      defaultText = lib.literalExpression "azerothcore-playerbots-nix.packages.\${system}.azerothcore-playerbots";
+      default = acPkgs.azerothcore-playerbots.override (old: {
+        modules = old.modules // cfg.extraModules;
+      });
+      defaultText = lib.literalExpression "azerothcore-playerbots-nix.packages.\${system}.azerothcore-playerbots, with extraModules";
+    };
+
+    extraModules = lib.mkOption {
+      type = lib.types.attrsOf lib.types.path;
+      default = { };
+      example = lib.literalExpression "{ mod-individual-progression = inputs.mod-individual-progression; }";
+      description = "Additional AzerothCore module sources, compiled in next to mod-playerbots. The attribute name becomes the directory under modules/, which some modules require to match their repository name. Their SQL is applied by the auto-updater, their .conf.dist can be overridden via moduleSettings.";
     };
 
     stateDir = lib.mkOption {

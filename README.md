@@ -150,6 +150,38 @@ services.mysql.settings.mysqld = {
 };
 ```
 
+### Additional modules
+
+Further AzerothCore modules are compiled in via `extraModules`, keyed by the
+directory name under `modules/`. Pin their source as a non-flake input, so it
+is locked and bumped with the rest:
+
+```nix
+# flake.nix
+inputs.mod-individual-progression = {
+  url = "github:ZhengPeiRu21/mod-individual-progression";
+  flake = false;
+};
+```
+
+```nix
+services.azerothcore = {
+  extraModules = { inherit mod-individual-progression; };
+  moduleSettings."individualProgression.conf" = {
+    "IndividualProgression.EnforceGroupRules" = 1;
+  };
+};
+```
+
+- Some modules require the directory to match the repository name, so keep the
+  attribute name identical to it.
+- The module's `data/sql/<db>` is applied by the auto-updater on the next
+  worldserver start. These changes are not reverted when the module is removed
+  again.
+- Its `conf/*.conf.dist` is rendered like `playerbots.conf` and can be
+  overridden via `moduleSettings`.
+- The module has to build against the Playerbot fork; not every module does.
+
 ### GM commands
 
 The worldserver has no interactive console under systemd. Use Remote Access
@@ -226,21 +258,22 @@ UPDATE acore_auth.realmlist SET address = '<public ip or hostname>' WHERE id = 1
 
 ### Options
 
-| Option                   | Default                                                   | Description                                                          |
-| ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------------- |
-| `enable`                 | `false`                                                   | Enable the auth- and worldserver                                     |
-| `package`                | `azerothcore-playerbots` from this flake                  | Server package                                                       |
-| `stateDir`               | `/var/lib/azerothcore`                                    | Working directory; logs go to `/var/log/azerothcore`                 |
-| `clientData.enable`      | `false`                                                   | Use the prebuilt client data as `dataDir`                            |
-| `clientData.package`     | `wotlk-client-data` from this flake                       | Client data package                                                  |
-| `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`   | Client data (dbc/maps/vmaps/mmaps)                                   |
-| `database.host`          | `127.0.0.1`                                               | MySQL host (TCP)                                                     |
-| `database.port`          | `3306`                                                    | MySQL port (TCP)                                                     |
-| `database.socket`        | `/run/mysqld/mysqld.sock` if `createLocally`, else `null` | Unix socket; overrides host/port                                     |
-| `database.user`          | `azerothcore`                                             | MySQL user                                                           |
-| `database.passwordFile`  | `""`                                                      | File containing the MySQL password; empty = no password              |
-| `database.createLocally` | `true`                                                    | Run a local MySQL 8.4                                                |
-| `totpMasterSecretFile`   | `""`                                                      | File containing the `TOTPMasterSecret` (32 hex chars); empty = unset |
-| `worldserver.settings`   | `{ }`                                                     | Overrides for `worldserver.conf`                                     |
-| `authserver.settings`    | `{ }`                                                     | Overrides for `authserver.conf`                                      |
-| `moduleSettings.<file>`  | `{ }`                                                     | Overrides for `modules/<file>`, e.g. `"playerbots.conf"`             |
+| Option                   | Default                                                    | Description                                                          |
+| ------------------------ | ---------------------------------------------------------- | -------------------------------------------------------------------- |
+| `enable`                 | `false`                                                    | Enable the auth- and worldserver                                     |
+| `package`                | `azerothcore-playerbots` from this flake, + `extraModules` | Server package                                                       |
+| `extraModules.<name>`    | `{ }`                                                      | Additional module sources, compiled into `package`                   |
+| `stateDir`               | `/var/lib/azerothcore`                                     | Working directory; logs go to `/var/log/azerothcore`                 |
+| `clientData.enable`      | `false`                                                    | Use the prebuilt client data as `dataDir`                            |
+| `clientData.package`     | `wotlk-client-data` from this flake                        | Client data package                                                  |
+| `dataDir`                | `clientData.package` if enabled, else `<stateDir>/data`    | Client data (dbc/maps/vmaps/mmaps)                                   |
+| `database.host`          | `127.0.0.1`                                                | MySQL host (TCP)                                                     |
+| `database.port`          | `3306`                                                     | MySQL port (TCP)                                                     |
+| `database.socket`        | `/run/mysqld/mysqld.sock` if `createLocally`, else `null`  | Unix socket; overrides host/port                                     |
+| `database.user`          | `azerothcore`                                              | MySQL user                                                           |
+| `database.passwordFile`  | `""`                                                       | File containing the MySQL password; empty = no password              |
+| `database.createLocally` | `true`                                                     | Run a local MySQL 8.4                                                |
+| `totpMasterSecretFile`   | `""`                                                       | File containing the `TOTPMasterSecret` (32 hex chars); empty = unset |
+| `worldserver.settings`   | `{ }`                                                      | Overrides for `worldserver.conf`                                     |
+| `authserver.settings`    | `{ }`                                                      | Overrides for `authserver.conf`                                      |
+| `moduleSettings.<file>`  | `{ }`                                                      | Overrides for `modules/<file>`, e.g. `"playerbots.conf"`             |
