@@ -103,6 +103,16 @@ let
     ];
   };
 
+  # Restart=always never gives up on its own: with RestartSec=5 a crash loop
+  # stays below systemd's default limit (5 starts in 10s), so the unit never
+  # enters the failed state and OnFailure= never fires. The window is long
+  # because the worldserver takes minutes to load before it can crash again.
+  # `systemctl reset-failed` clears it early.
+  unitCommon = {
+    startLimitIntervalSec = 1800;
+    startLimitBurst = 5;
+  };
+
   settingsType = lib.types.attrsOf (
     lib.types.oneOf [
       lib.types.str
@@ -273,7 +283,7 @@ in
       "d ${cfg.stateDir} 0750 azerothcore azerothcore -"
     ];
 
-    systemd.services.ac-authserver = {
+    systemd.services.ac-authserver = unitCommon // {
       description = "AzerothCore authserver";
       after = [
         "network.target"
@@ -286,7 +296,7 @@ in
       };
     };
 
-    systemd.services.ac-worldserver = {
+    systemd.services.ac-worldserver = unitCommon // {
       description = "AzerothCore worldserver (playerbots)";
       after = [
         "network.target"
