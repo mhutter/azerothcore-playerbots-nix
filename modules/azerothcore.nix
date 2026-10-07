@@ -78,6 +78,22 @@ let
     done
   '';
 
+  # The authserver ORs REALM_FLAG_OFFLINE onto every realm at startup, the
+  # worldserver sets VERSION_MISMATCH while it loads: if the worldserver writes
+  # first, the authserver sees flag 3 and exits (azerothcore-wotlk#27000).
+  # Listening is the first outside signal that its write is done (no sd_notify).
+  # Bounded, and falls through: after a worldserver died mid-load, flag 3 is
+  # already set and only a worldserver finishing its load clears it, so
+  # waiting forever would deadlock.
+  authPort = toString (cfg.authserver.settings.RealmServerPort or 3724);
+  waitForAuthserver = pkgs.writeShellScript "ac-wait-authserver" ''
+    for _ in $(${pkgs.coreutils}/bin/seq 60); do
+      [ -n "$(${pkgs.iproute2}/bin/ss -Hltn 'sport = :${authPort}')" ] && exit 0
+      sleep 1
+    done
+    echo "authserver not listening after 60s, starting anyway" >&2
+  '';
+
   serviceCommon = {
     User = "azerothcore";
     Group = "azerothcore";
@@ -304,8 +320,13 @@ in
         "ac-authserver.service"
       ];
       requires = lib.optional cfg.database.createLocally "mysql.service";
+      wants = [ "ac-authserver.service" ];
       wantedBy = [ "multi-user.target" ];
       serviceConfig = serviceCommon // {
+        ExecStartPre = [
+          serviceCommon.ExecStartPre
+          "${waitForAuthserver}"
+        ];
         ExecStart = "${pkgs.coreutils}/bin/stdbuf -oL ${cfg.package}/bin/worldserver -c ${runDir}/worldserver.conf";
         TimeoutStopSec = 300; # world save on shutdown
         LimitNOFILE = 65536;
