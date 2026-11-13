@@ -50,7 +50,9 @@ let
       [[ $totp =~ ^[0-9a-fA-F]{32}$ ]] \
         || { echo "totpMasterSecretFile: expected 32 hex chars (openssl rand -hex 16)" >&2; exit 1; }
     fi
-    mkdir -p ${runDir}/modules
+    # Runs as root, so ownership is explicit: the rendered files hold secrets
+    # and must be readable by the service user only.
+    install -d -o azerothcore -g azerothcore -m 0750 ${runDir}/modules
     # Drop the .dist lines for overridden keys, then append the overrides.
     render() {
       { ${lib.getExe pkgs.gawk} -F= '
@@ -59,6 +61,8 @@ let
           !(k in o)
         ' "$2" "$1"; echo; cat "$2"; } \
         | sed -e "s|@DB_PASSWORD@|$pw|g" -e "s|@TOTP_MASTER_SECRET@|$totp|g" > "$3"
+      chown azerothcore:azerothcore "$3"
+      chmod 0640 "$3"
     }
     render ${cfg.package}/etc/worldserver.conf.dist ${worldConf} ${runDir}/worldserver.conf
     render ${cfg.package}/etc/authserver.conf.dist ${authConf} ${runDir}/authserver.conf
@@ -99,6 +103,7 @@ let
     Group = "azerothcore";
     WorkingDirectory = cfg.stateDir;
     RuntimeDirectory = "azerothcore";
+    RuntimeDirectoryMode = "0750";
     RuntimeDirectoryPreserve = true;
     StateDirectory = "azerothcore";
     LogsDirectory = "azerothcore";
