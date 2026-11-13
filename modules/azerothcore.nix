@@ -108,15 +108,61 @@ let
     LoadCredential =
       lib.optional (cfg.database.passwordFile != "") "dbpass:${cfg.database.passwordFile}"
       ++ lib.optional (cfg.totpMasterSecretFile != "") "totp:${cfg.totpMasterSecretFile}";
+    # "+": runs as root, outside the sandbox below, to read the credentials.
     ExecStartPre = "+${preStart}";
-    NoNewPrivileges = true;
-    ProtectSystem = "strict";
-    ProtectHome = true;
-    PrivateTmp = true;
     ReadWritePaths = [
       cfg.stateDir
       runDir
     ];
+  }
+  // hardening;
+
+  ## Sandboxing
+  # Both servers are internet-facing and run third-party module code, so they
+  # get everything that does not break them. Not set: PrivateNetwork and
+  # IPAddressDeny (public listeners), PrivateUsers (gains little next to
+  # CapabilityBoundingSet), ProcSubset (unclear what AC reads from /proc).
+  hardening = {
+    CapabilityBoundingSet = "";
+    NoNewPrivileges = true;
+    LockPersonality = true;
+    # No JIT anywhere in AC or the bundled modules. First suspect if a module
+    # crashes on startup with SIGSEGV.
+    MemoryDenyWriteExecute = true;
+    PrivateDevices = true;
+    PrivateTmp = true;
+    ProtectClock = true;
+    ProtectControlGroups = true;
+    ProtectHome = true;
+    ProtectHostname = true;
+    ProtectKernelLogs = true;
+    ProtectKernelModules = true;
+    ProtectKernelTunables = true;
+    ProtectProc = "invisible";
+    ProtectSystem = "strict";
+    RemoveIPC = true;
+    # AF_NETLINK: glibc's getaddrinfo (AI_ADDRCONFIG) and the `ss` in
+    # ac-wait-authserver.
+    RestrictAddressFamilies = [
+      "AF_UNIX"
+      "AF_INET"
+      "AF_INET6"
+      "AF_NETLINK"
+    ];
+    RestrictNamespaces = true;
+    RestrictRealtime = true;
+    RestrictSUIDSGID = true;
+    SystemCallArchitectures = "native";
+    # @resources stays allowed: the worldserver sets its CPU affinity and
+    # priority (ProcessPriority). EPERM instead of the default SIGSYS, so a
+    # filtered call fails like an unprivileged one instead of killing the
+    # server mid-save.
+    SystemCallFilter = [
+      "@system-service"
+      "~@privileged"
+    ];
+    SystemCallErrorNumber = "EPERM";
+    UMask = "0027";
   };
 
   # Restart=always never gives up on its own: with RestartSec=5 a crash loop
